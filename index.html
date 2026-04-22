@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Medical Device Search</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&family=Space+Grotesk:wght@300;400;500;600&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#e7ebf2;overflow:hidden;font-family:'Sora',sans-serif;height:100vh;width:100vw;}
+  #cv{position:fixed;inset:0;z-index:1;}
+  #bg-layer{
+    position:fixed;inset:0;z-index:0;
+    background:#e7ebf2;
+    overflow:hidden;
+  }
+  #bg-layer::before{
+    content:'';
+    position:absolute;
+    inset:-5%;
+    background-image:var(--bg-galaxy-url, url('./earth.png'));
+    background-position:center;
+    background-size:cover;
+    background-repeat:no-repeat;
+    filter:blur(7px) saturate(1.05);
+    opacity:.82;
+    transform:scale(1.04);
+  }
+  #bg-layer::after{
+    content:'';
+    position:absolute;
+    inset:0;
+    background:
+      radial-gradient(circle at 50% 42%, rgba(242,246,252,.22) 0%, rgba(231,238,248,.32) 42%, rgba(216,225,238,.44) 100%);
+    pointer-events:none;
+  }
+
+  #loading{
+    position:fixed;inset:0;z-index:200;background:#dfe9f1;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+    transition:opacity .7s;
+  }
+  #loading.out{opacity:0;pointer-events:none;}
+  .ring{width:42px;height:42px;border:2px solid rgba(80,130,220,.15);border-top-color:rgba(80,130,220,.8);border-radius:50%;animation:spin .85s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .ltx{font-size:11px;letter-spacing:.22em;color:rgba(80,120,180,.45);}
+
+  .ui{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:44px;pointer-events:none;}
+  .sb-wrap{pointer-events:all;width:min(660px,92vw);display:flex;flex-direction:column;align-items:center;}
+  .slabel{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:17px;
+    font-weight:700;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    color:#0d1a2e;
+    margin-bottom:18px;
+    text-shadow:0 1px 3px rgba(0,0,0,.15);
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .slabel-logo{
+    width:30px;
+    height:30px;
+    object-fit:contain;
+    filter:drop-shadow(0 1px 2px rgba(13,26,46,.22));
+  }
+  .sw{position:relative;width:100%;filter:drop-shadow(0 4px 28px rgba(90,130,210,.18));}
+  .si{width:100%;height:58px;background:rgba(255,255,255,.72);border:2px solid #1a2a6c;border-radius:30px;padding:0 155px 0 30px;color:#253558;font-family:'Sora',sans-serif;font-size:15px;font-weight:300;outline:none;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);transition:border-color .3s,box-shadow .3s,background .3s;}
+  .si::placeholder{color:rgba(110,145,200,.45);}
+  .si:focus{background:rgba(255,255,255,.9);border-color:#0d1a5c;box-shadow:0 0 0 4px rgba(26,42,108,.12);}
+  .sbtn{position:absolute;right:7px;top:50%;transform:translateY(-50%);height:44px;padding:0 28px;background:linear-gradient(135deg,#1a2a6c,#0d1a4a);border:none;border-radius:22px;color:#fff;font-family:'Sora',sans-serif;font-size:13px;font-weight:500;cursor:pointer;letter-spacing:.05em;box-shadow:0 4px 16px rgba(13,26,76,.45);transition:transform .15s,box-shadow .2s;}
+  .sbtn:hover{transform:translateY(-50%) scale(1.04);box-shadow:0 6px 22px rgba(13,26,76,.60);}
+  .trending{display:flex;align-items:center;gap:10px;margin-top:18px;flex-wrap:wrap;justify-content:center;}
+  .tl{font-size:11px;color:rgba(100,130,180,.5);letter-spacing:.1em;}
+  .tsep{width:1px;height:13px;background:rgba(120,150,200,.22);}
+  .tag{font-size:12px;color:rgba(70,105,180,.75);padding:5px 14px;border:1px solid rgba(140,170,230,.35);border-radius:20px;cursor:pointer;background:rgba(255,255,255,.55);backdrop-filter:blur(10px);transition:all .2s;}
+  .tag:hover{color:#3a5ce8;border-color:rgba(90,135,240,.55);background:rgba(255,255,255,.85);}
+
+  /* Country tooltip */
+  #ctip{
+    position:fixed;z-index:100;
+    background:rgba(255,255,255,.92);
+    border:1px solid rgba(140,170,230,.4);
+    border-radius:12px;
+    padding:8px 16px;
+    pointer-events:none;
+    opacity:0;
+    transition:opacity .18s;
+    backdrop-filter:blur(20px);
+    -webkit-backdrop-filter:blur(20px);
+    box-shadow:0 8px 32px rgba(80,120,200,.18);
+    display:flex;flex-direction:column;gap:2px;
+  }
+  #ctip.on{opacity:1;}
+  #ctip .cname-ko{font-size:14px;font-weight:500;color:#1e3a6a;letter-spacing:.02em;}
+  #ctip .cname-en{font-size:11px;color:rgba(80,110,170,.65);letter-spacing:.05em;}
+  #ctip .click-hint{font-size:10px;color:rgba(80,130,220,.5);letter-spacing:.08em;margin-top:2px;}
+
+  #stip{position:fixed;bottom:42px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.88);border:1px solid rgba(140,170,230,.38);border-radius:10px;padding:9px 22px;color:#2e4a7a;font-size:13px;letter-spacing:.04em;backdrop-filter:blur(16px);pointer-events:none;opacity:0;transition:opacity .3s;z-index:20;white-space:nowrap;}
+  #stip.on{opacity:1;}
+  .hint{position:fixed;bottom:26px;right:28px;font-size:10px;color:rgba(90,120,170,.28);letter-spacing:.12em;line-height:2;pointer-events:none;z-index:10;}
+
+  /* ── Autocomplete dropdown ── */
+  #autocomplete{
+    position:absolute;
+    top:calc(100% + 8px);
+    left:0; right:0;
+    background:rgba(255,255,255,.94);
+    border:1px solid rgba(140,175,235,.38);
+    border-radius:18px;
+    overflow:hidden;
+    box-shadow:0 12px 40px rgba(80,120,200,.18);
+    backdrop-filter:blur(24px);
+    -webkit-backdrop-filter:blur(24px);
+    display:none;
+    z-index:50;
+    pointer-events:all;
+  }
+  #autocomplete.open{ display:block; }
+  .ac-item{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:12px 20px;
+    cursor:pointer;
+    transition:background .15s;
+    border-bottom:1px solid rgba(140,175,235,.12);
+  }
+  .ac-item:last-child{ border-bottom:none; }
+  .ac-item:hover, .ac-item.active{
+    background:rgba(100,150,240,.1);
+  }
+  .ac-dot{
+    width:10px; height:10px;
+    border-radius:50%;
+    flex-shrink:0;
+  }
+  .ac-names{
+    display:flex; flex-direction:column; gap:1px;
+  }
+  .ac-ko{
+    font-size:14px; font-weight:500; color:#1e3a6a; letter-spacing:.01em;
+  }
+  .ac-en{
+    font-size:11px; color:rgba(80,110,170,.6); letter-spacing:.04em;
+  }
+  .ac-arrow{
+    margin-left:auto;
+    font-size:12px; color:rgba(100,140,220,.5);
+  }
+
+  /* 홈페이지 소개 패널 */
+  #todo-panel{
+    position:fixed;bottom:28px;left:28px;z-index:10;
+    background:rgba(255,255,255,.88);
+    border:1px solid rgba(140,170,230,.38);
+    border-radius:14px;
+    backdrop-filter:blur(20px);
+    -webkit-backdrop-filter:blur(20px);
+    box-shadow:0 8px 32px rgba(80,120,200,.15);
+    overflow:hidden;
+    width:min(300px,calc(100vw - 36px));
+    pointer-events:all;
+    transition:box-shadow .2s;
+  }
+  #todo-panel:hover{box-shadow:0 10px 40px rgba(80,120,200,.22);}
+  #todo-header{
+    padding:10px 14px;cursor:pointer;user-select:none;
+    border-bottom:1px solid transparent;
+    transition:border-color .2s;
+  }
+  #todo-panel.intro-open #todo-header{
+    border-bottom-color:rgba(140,170,230,.22);
+  }
+  #todo-title{font-size:10.5px;font-weight:600;color:#2e4a7a;letter-spacing:.04em;}
+  #todo-body{
+    display:none;
+    padding:12px 14px 14px;
+    max-height:70vh;
+    overflow-y:auto;
+  }
+  #todo-panel.intro-open #todo-body{display:block;}
+  .intro-steps{
+    margin:0;padding-left:18px;
+    font-size:11px;color:#2e4a7a;line-height:1.65;
+    letter-spacing:.01em;
+  }
+  .intro-steps li{margin-bottom:8px;padding-left:2px;}
+  .intro-steps li:last-child{margin-bottom:0;}
+  #todo-header, #todo-body{ text-align:center; }
+  .intro-steps{
+    list-style-position:inside;
+    padding-left:0;
+  }
+</style>
+</head>
+<body>
+<div id="loading"><div class="ring"></div><div class="ltx">LOADING EARTH</div></div>
+<div id="bg-layer"></div>
+
+<canvas id="cv"></canvas>
+
+<div class="ui">
+  <div class="sb-wrap">
+    <div class="slabel">
+      <img class="slabel-logo" src="./upah-logo.svg" alt="UPAH 로고" />
+      <span>UPharma Export AI</span>
+    </div>
+    <div class="sw">
+      <input class="si" id="si" type="text" placeholder="국가를 입력해주세요" autocomplete="off"/>
+      <button class="sbtn" onclick="doSearch()">Search</button>
+      <div id="autocomplete"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Country hover tooltip -->
+<div id="ctip">
+  <span class="cname-ko" id="ctip-ko"></span>
+  <span class="cname-en" id="ctip-en"></span>
+  <span class="click-hint">클릭하여 이동 →</span>
+</div>
+
+<div id="stip"></div>
+<div class="hint">DRAG TO ROTATE &nbsp;·&nbsp; SCROLL TO ZOOM</div>
+
+<div id="todo-panel">
+  <div id="todo-header" onclick="toggleIntro()">
+    <span id="todo-title">홈페이지 소개</span>
+  </div>
+  <div id="todo-body">
+    <ol class="intro-steps">
+      <li>국가를 선택하여 페이지에 접속한다.</li>
+      <li>약품을 선택하고 시장 조사를 진행한다.</li>
+      <li>시장 조사 이후 약품의 가격을 산출한다.</li>
+      <li>위의 정보를 토대로 바이어 발굴을 진행한다.</li>
+    </ol>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════════
+//  HOLOGRAPHIC GLOBE — GeoJSON outlines + country highlighting
+//  + Raycasting hover tooltip
+// ══════════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('cv');
+const W = window.innerWidth, H = window.innerHeight;
+const atmosphereMeshes = [];
+
+function applyWhiteBlackGalaxyBg(){
+  const bgLayer = document.getElementById('bg-layer');
+  if(!bgLayer) return;
+
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    try{
+      const cv = document.createElement('canvas');
+      cv.width = img.width;
+      cv.height = img.height;
+      const ctx = cv.getContext('2d');
+      if(!ctx) return;
+      ctx.drawImage(img, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, cv.width, cv.height);
+      const data = imageData.data;
+      for(let i = 0; i < data.length; i += 4){
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        data[i] = Math.min(255, r + 20);
+        data[i + 1] = Math.min(255, g + 20);
+        data[i + 2] = Math.min(255, b + 20);
+        // 배경 검정 영역만 흰색으로 교체해 대륙 색감은 유지
+        if(r < 18 && g < 18 && b < 18){
+          data[i] = 255;
+          data[i + 1] = 255;
+          data[i + 2] = 255;
+        }
+      }
+      ctx.putImageData(imageData, 0, 0);
+      bgLayer.style.setProperty('--bg-galaxy-url', `url("${cv.toDataURL('image/png')}")`);
+    }catch(err){
+      console.warn('Background galaxy processing skipped:', err);
+    }
+  };
+  img.onerror = () => { img.src = '/earth.png'; };
+  img.src = './earth.png';
+}
+
+applyWhiteBlackGalaxyBg();
+
+const VISUAL_THEME = {
+  bodyBg: '#e7ebf2',
+  atmosphereOpacity: [0.13, 0.06, 0.025],
+};
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+renderer.setSize(W,H); renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setClearColor(0,0);
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.NoToneMapping;
+renderer.toneMappingExposure = 1.0;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40,W/H,.1,500);
+camera.position.set(0,0,3.8);
+
+scene.add(new THREE.AmbientLight(0xffffff, 1.12));
+
+const R=1.0;
+const earthGroup=new THREE.Group(); scene.add(earthGroup);
+// 첫 화면: 동유럽·중동·아프리카 중심 (유럽 위·사우디·홍해 근처 정면에 가깝게)
+earthGroup.rotation.x = -0.14;
+earthGroup.rotation.y = -2.38;
+
+// ── Globe base — Lambert + 앰비언트만 (스펙큘러·백색 음영 제거)
+const globeMat = new THREE.MeshLambertMaterial({});
+const globeMesh = new THREE.Mesh(new THREE.SphereGeometry(R,128,96), globeMat);
+earthGroup.add(globeMesh);
+
+/** Blue Marble 픽셀을 바다/육지로 나눔 (완벽 분리는 아님, 시각적 목적) */
+function classifyOceanLand(r, g, b){
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  const mx = Math.max(r, g, b);
+  // 식생·숲
+  if (g > r + 18 && g > b + 12 && r < 210) return 'land';
+  // 사막·건조
+  if (r > g + 22 && r > b + 14) return 'land';
+  // 극지 밝은 눈 — 바다 과보정 방지
+  if (lum > 0.92 && r > 235 && g > 235) return 'neutral';
+  // 남색 해역
+  if (b >= r - 8 && b >= g - 12 && (b > r + 8 || (lum < 0.55 && b === mx))) return 'ocean';
+  if (lum < 0.45 && b >= r && b >= g) return 'ocean';
+  return 'land';
+}
+
+/** 바다(ocean)만 파란 채널 보정(3단계 상향) — 육지·극지는 NASA 원본 유지 */
+function brightenBlueMarbleTexture(srcTex){
+  const img = srcTex.image;
+  if (!img || !img.width || !img.height) return srcTex;
+  try {
+    const TW = img.width, TH = img.height;
+    const cv = document.createElement('canvas');
+    cv.width = TW;
+    cv.height = TH;
+    const ctx = cv.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const d = ctx.getImageData(0, 0, TW, TH);
+    const OCEAN_BLUE_BRIGHTEN_LEVEL = 2;
+    const OCEAN_BLUE_BRIGHTEN_STEP = 15;
+    const oceanBlueBoost = 75 + (OCEAN_BLUE_BRIGHTEN_LEVEL * OCEAN_BLUE_BRIGHTEN_STEP);
+    for (let i = 0; i < d.data.length; i += 4){
+      const r = d.data[i], g = d.data[i + 1], b = d.data[i + 2];
+      const kind = classifyOceanLand(r, g, b);
+      if (kind === 'ocean'){
+        const px = (i / 4) % TW;
+        const py = Math.floor((i / 4) / TW);
+        const nx = px / TW;
+        const ny = py / TH;
+
+        // 바다에만 랜덤하게 흩뿌려진 미스트 질감 (균일 베이스 없음)
+        const low1 = 0.5 + 0.5 * Math.sin((nx * 4.7 + ny * 2.9) * Math.PI + 0.3);
+        const low2 = 0.5 + 0.5 * Math.sin((nx * 1.8 - ny * 5.2) * Math.PI + 2.2);
+        const mid = 0.5 + 0.5 * Math.sin((nx * 14.3 + ny * 10.7) * Math.PI + 1.1);
+        const grain = Math.abs(Math.sin((px * 127.1 + py * 311.7) * 0.0041 + low1 * 5.1));
+        const field = low1 * 0.42 + low2 * 0.34 + mid * 0.16 + grain * 0.08;
+        const mist = Math.max(0, Math.min(1, (field - 0.49) / 0.33));
+        const washStrength = mist * mist * (3 - 2 * mist) * 0.20;
+
+        d.data[i]     = Math.min(255, r + Math.round(220 * washStrength));
+        d.data[i + 1] = Math.min(255, g + Math.round(220 * washStrength));
+        d.data[i + 2] = Math.min(255, b + oceanBlueBoost + Math.round(105 * washStrength));
+      }
+    }
+    ctx.putImageData(d, 0, 0);
+    const brightTex = new THREE.CanvasTexture(cv);
+    brightTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    brightTex.encoding = THREE.sRGBEncoding;
+    brightTex.needsUpdate = true;
+    srcTex.dispose();
+    return brightTex;
+  } catch (err){
+    console.warn('Blue marble brighten skipped:', err);
+    return srcTex;
+  }
+}
+
+/** earth-clouds.png를 지구 해상도에 맞춘 뒤 육지는 알파 0 — 바다 위만 불투명한 흰 구름 유지 */
+function buildOceanOnlyCloudMap(cloudImg, earthImg){
+  const w = earthImg.width, h = earthImg.height;
+  if (!w || !h) return null;
+  try {
+    const earthC = document.createElement('canvas');
+    earthC.width = w; earthC.height = h;
+    const ectx = earthC.getContext('2d');
+    ectx.drawImage(earthImg, 0, 0, w, h);
+    const ed = ectx.getImageData(0, 0, w, h).data;
+
+    const cloudC = document.createElement('canvas');
+    cloudC.width = w; cloudC.height = h;
+    const cctx = cloudC.getContext('2d');
+    cctx.drawImage(cloudImg, 0, 0, w, h);
+    const cd = cctx.getImageData(0, 0, w, h).data;
+
+    const out = document.createElement('canvas');
+    out.width = w; out.height = h;
+    const ctx = out.getContext('2d');
+    const imageData = ctx.createImageData(w, h);
+    const d = imageData.data;
+
+    for (let i = 0; i < d.length; i += 4){
+      const er = ed[i], eg = ed[i + 1], eb = ed[i + 2];
+      const kind = classifyOceanLand(er, eg, eb);
+      const cr = cd[i], cg = cd[i + 1], cb = cd[i + 2], ca = cd[i + 3];
+      const dens = Math.max(cr, cg, cb) / 255 * (ca / 255);
+
+      if (kind !== 'ocean' || dens < 0.04){
+        d[i] = 255; d[i + 1] = 255; d[i + 2] = 255; d[i + 3] = 0;
+      } else {
+        d[i] = 255;
+        d[i + 1] = 255;
+        d[i + 2] = 255;
+        d[i + 3] = Math.min(255, Math.round(dens * 255 * 1.18));
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+    return out;
+  } catch (e){
+    console.warn('Ocean-only cloud mask failed:', e);
+    return null;
+  }
+}
+
+function initOceanCloudMeshes(earthImg){
+  const cl = new THREE.TextureLoader();
+  cl.crossOrigin = 'anonymous';
+  cl.load(
+    'https://unpkg.com/three-globe/example/img/earth-clouds.png',
+    cloudTex => {
+      const canvas = buildOceanOnlyCloudMap(cloudTex.image, earthImg);
+      cloudTex.dispose();
+      if (!canvas) return;
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      tex.encoding = THREE.sRGBEncoding;
+      tex.needsUpdate = true;
+
+      const mkLayer = (radiusMul, opacity)=>{
+        const mesh = new THREE.Mesh(
+          new THREE.SphereGeometry(R * radiusMul, 112, 72),
+          new THREE.MeshBasicMaterial({
+            map: tex,
+            transparent: true,
+            opacity,
+            depthWrite: false,
+            color: 0xffffff,
+          })
+        );
+        mesh.renderOrder = 6;
+        mesh.userData.isCloud = true;
+        mesh.userData.cloudSpeed = 0.00022;
+        earthGroup.add(mesh);
+      };
+      mkLayer(1.0055, 0.35);
+      mkLayer(1.0098, 0.28);
+    },
+    undefined,
+    ()=>{}
+  );
+}
+
+const earthTexLoader = new THREE.TextureLoader();
+earthTexLoader.crossOrigin = 'anonymous';
+
+function tryLoadTex(urls, onOk, onFail){
+  if(!urls.length){ onFail(); return; }
+  earthTexLoader.load(urls[0], onOk, undefined, ()=>tryLoadTex(urls.slice(1),onOk,onFail));
+}
+tryLoadTex([
+  'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg',
+  'https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-blue-marble.jpg',
+], tex=>{
+  let mapTex = brightenBlueMarbleTexture(tex);
+  mapTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  mapTex.encoding = THREE.sRGBEncoding;
+  globeMat.map = mapTex;
+  globeMat.color.set(0xffffff);
+  globeMat.needsUpdate = true;
+  applyFixedVisualTheme();
+  initOceanCloudMeshes(mapTex.image);
+}, ()=>{});
+
+// ── 대기 글로우 (모드 전환 시 opacity만 교체) ──
+[[1.02,0x88ccff,.13],[1.06,0xaadeff,.06],[1.13,0xcceeff,.025]].forEach(([s,c,o])=>{
+  const mesh = new THREE.Mesh(
+    new THREE.SphereGeometry(R*s,64,64),
+    new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:o,side:THREE.BackSide})
+  );
+  atmosphereMeshes.push(mesh);
+  earthGroup.add(mesh);
+});
+
+// ── Coordinate helpers ──
+// GeoJSON uses [lon, lat]
+function ll2v(lon,lat,r=R){
+  const phi=(90-lat)*Math.PI/180, theta=(lon+180)*Math.PI/180;
+  return new THREE.Vector3(-r*Math.sin(phi)*Math.cos(theta), r*Math.cos(phi), r*Math.sin(phi)*Math.sin(theta));
+}
+function v2ll(v){
+  const n=v.clone().normalize();
+  const lat=90-Math.acos(n.y)*180/Math.PI;
+  let lon=Math.atan2(n.z,-n.x)*180/Math.PI-180;
+  if(lon<-180)lon+=360;
+  return{lon,lat};
+}
+
+// ══════════════════════════════════════════════
+//  TARGET COUNTRIES — ISO numeric codes + ISO2 (Render 대시보드 서브도메인)
+//  예: sg → https://sg-analysis-dashboard.onrender.com/
+// ══════════════════════════════════════════════
+function countryAnalysisDashboardUrl(iso2) {
+  const code = String(iso2 || '').trim().toLowerCase();
+  const countryUrlMap = {
+    sg: 'https://sg-analysis-dashboard.onrender.com/',
+    // 현재 프로젝트의 헝가리 대시보드(Next.js 메인)로 연결
+    hu: '/',
+  };
+  if (countryUrlMap[code]) return countryUrlMap[code];
+  return `https://${code}-analysis-dashboard.onrender.com/`;
+}
+
+const TARGET_COUNTRIES = {
+  410: { ko:'대한민국',      en:'South Korea',   hex:0xffee00, css:'#ffee00', iso2:'KR', lon:127.8, lat:36.4  },
+  152: { ko:'칠레',          en:'Chile',         hex:0xffee00, css:'#ffee00', iso2:'CL', lon:-71.5, lat:-35.7 },
+  484: { ko:'멕시코',        en:'Mexico',        hex:0xffee00, css:'#ffee00', iso2:'MX', lon:-102.5,lat:23.6  },
+  591: { ko:'파나마',        en:'Panama',        hex:0xffee00, css:'#ffee00', iso2:'PA', lon:-80.1, lat:8.9   },
+  554: { ko:'뉴질랜드',      en:'New Zealand',   hex:0xffee00, css:'#ffee00', iso2:'NZ', lon:174.9, lat:-40.9 },
+  710: { ko:'남아프리카',    en:'South Africa',  hex:0xffee00, css:'#ffee00', iso2:'ZA', lon:25.1,  lat:-29.0 },
+  36:  { ko:'호주',          en:'Australia',     hex:0xffee00, css:'#ffee00', iso2:'AU', lon:133.8, lat:-25.3 },
+  344: { ko:'홍콩',          en:'Hong Kong',     hex:0xffee00, css:'#ffee00', iso2:'HK', lon:114.1, lat:22.3  },
+  360: { ko:'인도네시아',    en:'Indonesia',     hex:0xffee00, css:'#ffee00', iso2:'ID', lon:113.9, lat:-0.8  },
+  702: { ko:'싱가포르',      en:'Singapore',     hex:0xffee00, css:'#ffee00', iso2:'SG', lon:103.8, lat:1.35  },
+  858: { ko:'우루과이',      en:'Uruguay',       hex:0xffee00, css:'#ffee00', iso2:'UY', lon:-55.8, lat:-32.5 },
+  496: { ko:'몽골',          en:'Mongolia',      hex:0xffee00, css:'#ffee00', iso2:'MN', lon:103.8, lat:46.9  },
+  682: { ko:'사우디아라비아',en:'Saudi Arabia',  hex:0xffee00, css:'#ffee00', iso2:'SA', lon:45.1,  lat:24.0  },
+  616: { ko:'폴란드',        en:'Poland',        hex:0xffee00, css:'#ffee00', iso2:'PL', lon:19.4,  lat:52.1  },
+  784: { ko:'UAE',           en:'UAE',           hex:0xffee00, css:'#ffee00', iso2:'AE', lon:54.4,  lat:24.0  },
+  348: { ko:'헝가리',        en:'Hungary',       hex:0xffee00, css:'#ffee00', iso2:'HU', lon:19.5,  lat:47.2  },
+};
+
+// Small countries that need marker fallback (area too small for polygon fill)
+const SMALL_COUNTRY_COORDS = {
+  344: { lon:114.1, lat:22.3 },   // Hong Kong
+  702: { lon:103.8, lat:1.35 },   // Singapore
+};
+
+// ── Polygon fill using earcut (proper triangulation, handles concave shapes) ──
+function buildCountryMesh(coordinates, color, opacity=0.88) {
+  const allPositions=[], allIndices=[];
+  let globalOffset=0;
+
+  // Raised height for 3D pop-out effect
+  const RAISE = R + 0.038;
+  const SHADOW_RAISE = R + 0.020;
+
+  const processPoly=(rings, radius)=>{
+    if(!rings||rings.length===0) return;
+    const outer=rings[0];
+    if(!outer||outer.length<3) return;
+    const flatVerts=[], holeIndices=[];
+    outer.forEach(([lo,la])=>flatVerts.push(lo,la));
+    for(let h=1;h<rings.length;h++){
+      holeIndices.push(flatVerts.length/2);
+      rings[h].forEach(([lo,la])=>flatVerts.push(lo,la));
+    }
+    const tris=earcut(flatVerts, holeIndices.length>0?holeIndices:null, 2);
+    if(!tris||tris.length===0) return;
+    const vc=flatVerts.length/2;
+    for(let i=0;i<vc;i++){
+      const v=ll2v(flatVerts[i*2],flatVerts[i*2+1],radius);
+      allPositions.push(v.x,v.y,v.z);
+    }
+    tris.forEach(idx=>allIndices.push(idx+globalOffset));
+    globalOffset+=vc;
+  };
+
+  const proc=(coords, radius)=>{
+    if(!coords||coords.length===0) return;
+    if(Array.isArray(coords[0])&&Array.isArray(coords[0][0])&&typeof coords[0][0][0]==='number'){
+      processPoly(coords, radius);
+    } else if(Array.isArray(coords[0])&&typeof coords[0][0]==='number'){
+      processPoly([coords], radius);
+    } else {
+      coords.forEach(c=>proc(c, radius));
+    }
+  };
+
+  coordinates.forEach(c=>proc(c, RAISE));
+
+  if(allPositions.length===0||allIndices.length===0) return null;
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(allPositions,3));
+  geo.setIndex(allIndices);
+  geo.computeVertexNormals();
+
+  // Main fill — MeshLambertMaterial responds to scene lights for shading depth
+  const mat=new THREE.MeshLambertMaterial({color, transparent:true, opacity, side:THREE.DoubleSide, depthWrite:false});
+  const mesh=new THREE.Mesh(geo,mat);
+
+  // Shadow halo underneath for depth cue
+  const shadowPositions=[], shadowIndices=[];
+  let shadowOffset=0;
+  const processShadow=(coords)=>{
+    if(!coords||coords.length===0) return;
+    if(Array.isArray(coords[0])&&Array.isArray(coords[0][0])&&typeof coords[0][0][0]==='number'){
+      const outer=coords[0]; if(!outer||outer.length<3) return;
+      const fv=[],hi=[];
+      outer.forEach(([lo,la])=>fv.push(lo,la));
+      for(let h=1;h<coords.length;h++){hi.push(fv.length/2);coords[h].forEach(([lo,la])=>fv.push(lo,la));}
+      const tris=earcut(fv,hi.length>0?hi:null,2); if(!tris||tris.length===0) return;
+      const vc=fv.length/2;
+      for(let i=0;i<vc;i++){const v=ll2v(fv[i*2],fv[i*2+1],SHADOW_RAISE);shadowPositions.push(v.x,v.y,v.z);}
+      tris.forEach(idx=>shadowIndices.push(idx+shadowOffset)); shadowOffset+=vc;
+    } else if(Array.isArray(coords[0])&&typeof coords[0][0]==='number'){
+      processShadow([coords]);
+    } else { coords.forEach(c=>processShadow(c)); }
+  };
+  coordinates.forEach(c=>processShadow(c));
+  if(shadowPositions.length>0&&shadowIndices.length>0){
+    const sg=new THREE.BufferGeometry();
+    sg.setAttribute('position',new THREE.Float32BufferAttribute(shadowPositions,3));
+    sg.setIndex(shadowIndices); sg.computeVertexNormals();
+    const sm=new THREE.MeshBasicMaterial({color:0x6b3e00,transparent:true,opacity:0.25,side:THREE.DoubleSide,depthWrite:false});
+    const shadowMesh=new THREE.Mesh(sg,sm);
+    const group=new THREE.Group(); group.add(shadowMesh); group.add(mesh);
+    return group;
+  }
+  return mesh;
+}
+
+// ── Land outline + country fill ──
+const landGroup=new THREE.Group(); earthGroup.add(landGroup);
+// ── 해안선 / 국경선 ──
+const landMat=new THREE.LineBasicMaterial({color:0x16365a,transparent:true,opacity:0.68});
+const borderMat=new THREE.LineBasicMaterial({color:0x21466e,transparent:true,opacity:0.56});
+const gpsMarkerGroup = new THREE.Group();
+earthGroup.add(gpsMarkerGroup);
+
+// Store polygon data for raycasting PIP
+const countryPolygons={}; // id → array of rings [[lon,lat],...]
+const markedTargetIds = new Set();
+const highlightedTargetIds = new Set();
+
+function addGpsMarker(lon, lat){
+  const markerPos = ll2v(lon, lat, R + 0.040);
+  const marker = new THREE.Mesh(
+    new THREE.SphereGeometry(0.0105, 12, 12),
+    new THREE.MeshBasicMaterial({ color: 0xff2a2a, transparent: true, opacity: 0.95 })
+  );
+  marker.position.copy(markerPos);
+  marker.userData = { pulse: true, phase: Math.random() * Math.PI * 2 };
+  gpsMarkerGroup.add(marker);
+
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.013, 0.018, 20),
+    new THREE.MeshBasicMaterial({ color: 0xff6a6a, transparent: true, opacity: 0.56, side: THREE.DoubleSide })
+  );
+  ring.position.copy(markerPos.clone().multiplyScalar((R + 0.039) / (R + 0.040)));
+  ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), markerPos.clone().normalize());
+  ring.userData = { pulse: true, phase: Math.random() * Math.PI * 2 };
+  gpsMarkerGroup.add(ring);
+}
+
+function addTinyCountryHighlight(lon, lat, colorHex){
+  const p = ll2v(lon, lat, R + 0.036);
+  const dot = new THREE.Mesh(
+    new THREE.SphereGeometry(0.014, 14, 14),
+    new THREE.MeshBasicMaterial({ color: colorHex, transparent: true, opacity: 0.9 })
+  );
+  dot.position.copy(p);
+  landGroup.add(dot);
+
+  const halo = new THREE.Mesh(
+    new THREE.RingGeometry(0.017, 0.026, 24),
+    new THREE.MeshBasicMaterial({ color: colorHex, transparent: true, opacity: 0.62, side: THREE.DoubleSide, depthWrite: false })
+  );
+  halo.position.copy(p.clone().multiplyScalar((R + 0.035) / (R + 0.036)));
+  halo.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), p.clone().normalize());
+  landGroup.add(halo);
+}
+
+function buildLines(coords, mat, grp){
+  if(!coords||coords.length===0) return;
+  if(typeof coords[0][0]==='number'){
+    const pts=coords.map(([lo,la])=>ll2v(lo,la,R+0.003));
+    if(pts.length>1) grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),mat));
+  } else { coords.forEach(r=>buildLines(r,mat,grp)); }
+}
+
+function collectRings(geom, rings){
+  const proc=(coords)=>{
+    if(!coords||coords.length===0) return;
+    if(typeof coords[0][0]==='number') rings.push(coords);
+    else coords.forEach(r=>proc(r));
+  };
+  if(geom.type==='Polygon') proc(geom.coordinates);
+  else if(geom.type==='MultiPolygon') geom.coordinates.forEach(p=>proc(p));
+}
+
+function loadScript(src){
+  return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});
+}
+
+// ── Point-in-polygon (ray casting, 2D lon/lat space) ──
+function pointInRing(lon,lat,ring){
+  let inside=false;
+  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+    const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];
+    const intersect=((yi>lat)!==(yj>lat))&&(lon<(xj-xi)*(lat-yi)/(yj-yi)+xi);
+    if(intersect) inside=!inside;
+  }
+  return inside;
+}
+
+function getCountryAtLL(lon,lat){
+  for(const [idStr,rings] of Object.entries(countryPolygons)){
+    for(const ring of rings){
+      if(pointInRing(lon,lat,ring)) return parseInt(idStr);
+    }
+  }
+  return null;
+}
+
+function lonDeltaAbs(a, b){
+  const d = Math.abs(a - b);
+  return d > 180 ? 360 - d : d;
+}
+
+function getNearestHighlightedTargetId(lon, lat){
+  let nearestId = null;
+  let best = Infinity;
+  highlightedTargetIds.forEach((id)=>{
+    const info = TARGET_COUNTRIES[id];
+    if(!info) return;
+    const dLon = lonDeltaAbs(lon, info.lon);
+    const dLat = Math.abs(lat - info.lat);
+    const dist = Math.hypot(dLon, dLat);
+    if(dist < best){
+      best = dist;
+      nearestId = id;
+    }
+  });
+  // 소국가(싱가포르/홍콩) 클릭 보정 범위
+  return best <= 6 ? nearestId : null;
+}
+
+function resolveTargetIdAtLL(lon, lat){
+  const polygonId = getCountryAtLL(lon, lat);
+  if (polygonId && TARGET_COUNTRIES[polygonId]) return polygonId;
+  return getNearestHighlightedTargetId(lon, lat);
+}
+
+// ── 홈페이지 소개 패널 ──
+function toggleIntro(){
+  document.getElementById('todo-panel').classList.toggle('intro-open');
+}
+
+function applyFixedVisualTheme(){
+  const theme = VISUAL_THEME;
+  document.body.style.background = theme.bodyBg;
+  if(globeMat){
+    globeMat.transparent = true;
+    globeMat.opacity = 0.9;
+    globeMat.color.set(0xffffff);
+    globeMat.needsUpdate = true;
+  }
+  atmosphereMeshes.forEach((mesh, idx)=>{
+    if(mesh && mesh.material){
+      mesh.material.opacity = theme.atmosphereOpacity[idx] ?? mesh.material.opacity;
+      mesh.material.needsUpdate = true;
+    }
+  });
+}
+
+applyFixedVisualTheme();
+
+// ══════════════════════════════════════════════
+//  MAIN GEO INIT
+// ══════════════════════════════════════════════
+async function initGeo(){
+  try{
+    await loadScript('https://cdn.jsdelivr.net/npm/earcut@2.2.4/src/earcut.min.js');
+    await loadScript('https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js');
+
+    // Load land outlines (110m)
+    const r1=await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json');
+    const topo1=await r1.json();
+    const land=topojson.feature(topo1,topo1.objects.land);
+    land.features.forEach(f=>{
+      if(f.geometry.type==='Polygon') buildLines(f.geometry.coordinates,landMat,landGroup);
+      else if(f.geometry.type==='MultiPolygon') f.geometry.coordinates.forEach(p=>buildLines(p,landMat,landGroup));
+    });
+
+    // Load countries (110m) — fill targets + borders
+    const r2=await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+    const topo2=await r2.json();
+    const countries=topojson.feature(topo2,topo2.objects.countries);
+
+    countries.features.forEach(feat=>{
+      const id=parseInt(feat.id);
+      const geom=feat.geometry;
+      if(!geom) return;
+
+      // Collect rings for PIP raycasting
+      const rings=[];
+      collectRings(geom,rings);
+      if(rings.length>0) countryPolygons[id]=rings;
+
+      // Draw border lines
+      if(geom.type==='Polygon') buildLines(geom.coordinates,borderMat,landGroup);
+      else if(geom.type==='MultiPolygon') geom.coordinates.forEach(p=>buildLines(p,borderMat,landGroup));
+
+      // Highlight target countries
+      if(TARGET_COUNTRIES[id]){
+        const {hex, lon, lat}=TARGET_COUNTRIES[id];
+        let hasHighlight = false;
+        let coords=geom.type==='Polygon'?[geom.coordinates]:geom.type==='MultiPolygon'?geom.coordinates:null;
+        if(coords){
+          const mesh=buildCountryMesh(coords,hex,0.7);
+          if(mesh){
+            landGroup.add(mesh);
+            hasHighlight = true;
+          }
+        }
+
+        // 싱가포르/홍콩 등 소국가는 항상 보조 하이라이트를 추가해 가시성 확보
+        if(SMALL_COUNTRY_COORDS[id]){
+          addTinyCountryHighlight(lon, lat, hex);
+          hasHighlight = true;
+        }
+
+        // 노란 하이라이트가 실제 있는 국가에만 빨간 GPS 마커 표시
+        if(hasHighlight){
+          highlightedTargetIds.add(id);
+          addGpsMarker(lon, lat);
+          markedTargetIds.add(id);
+        }
+      }
+    });
+
+    // GeoJSON id 매칭 이슈 시, 지정한 소국가 좌표로 노란 하이라이트 + 빨간 마커를 보정
+    Object.entries(TARGET_COUNTRIES).forEach(([idStr, info]) => {
+      const idNum = Number(idStr);
+      if (highlightedTargetIds.has(idNum)) return;
+      if (!SMALL_COUNTRY_COORDS[idNum]) return;
+      addTinyCountryHighlight(info.lon, info.lat, info.hex);
+      addGpsMarker(info.lon, info.lat);
+      highlightedTargetIds.add(idNum);
+      markedTargetIds.add(idNum);
+    });
+
+  }catch(e){
+    console.warn('GeoJSON failed:',e);
+    drawFallback();
+  }
+  hideLoading();
+}
+
+function drawFallback(){
+  const rings=[
+    [[-168,72],[-140,70],[-120,68],[-100,72],[-80,70],[-65,47],[-70,42],[-74,40],[-80,32],[-90,29],[-97,26],[-118,32],[-124,46],[-130,55],[-140,60],[-165,62],[-168,72]],
+    [[-80,12],[-62,10],[-50,4],[-36,-4],[-35,-10],[-40,-20],[-44,-23],[-52,-33],[-60,-38],[-65,-52],[-60,-55],[-74,-42],[-80,-5],[-80,12]],
+    [[-9,36],[0,36],[10,38],[20,37],[30,42],[28,46],[20,54],[10,56],[0,51],[-9,38],[-9,36]],
+    [[-5,36],[0,37],[10,37],[20,37],[30,30],[33,24],[42,12],[40,0],[30,-22],[22,-34],[12,-22],[0,2],[-16,12],[-16,20],[-5,34],[-5,36]],
+    [[26,42],[44,48],[70,58],[90,68],[110,68],[130,60],[142,48],[138,38],[126,38],[120,42],[100,50],[80,46],[60,38],[55,28],[74,14],[86,26],[96,18],[100,4],[110,4],[120,30],[122,38],[110,40],[90,42],[76,54],[55,58],[44,48],[26,42]],
+    [[114,-22],[136,-12],[140,-18],[142,-10],[154,-26],[152,-34],[142,-38],[132,-32],[115,-25],[114,-22]],
+  ];
+  rings.forEach(r=>{
+    const pts=r.map(([lo,la])=>ll2v(lo,la,R+.003)); pts.push(pts[0].clone());
+    landGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),landMat));
+  });
+}
+
+function hideLoading(){const el=document.getElementById('loading');el.classList.add('out');setTimeout(()=>el.style.display='none',800);}
+
+// ── 하이라이트 국가 목록 (아크 출발/도착용) ──
+// Seoul(한국 본사) 포함, TARGET_COUNTRIES 좌표 그대로 사용
+const HUB = {n:'Seoul', lat:37.5, lon:127.0}; // 한국 본사 기점
+const targetList = Object.values(TARGET_COUNTRIES); // 한국 포함 타겟 국가
+
+// ── Animated arcs — 서울 ↔ 각 수출국, 수출국 ↔ 수출국 ──
+const ARC_COL = 0x88ddff;
+const ARC_COL_DIM = 0xffffff;
+const arcs = [];
+const arcGroup = new THREE.Group(); earthGroup.add(arcGroup);
+
+// 서울 → 타겟 국가 아크 (전체 표시)
+targetList.forEach((country, i) => {
+  const va = ll2v(HUB.lon, HUB.lat, R);
+  const vb = ll2v(country.lon, country.lat, R);
+  const lift = 0.22 + (i % 5) * 0.04;
+  const pts = [];
+  for(let t = 0; t <= 100; t++){
+    const tt = t / 100;
+    const v = new THREE.Vector3().lerpVectors(va, vb, tt);
+    v.normalize().multiplyScalar(R + Math.sin(Math.PI * tt) * lift);
+    pts.push(v.clone());
+  }
+  // 희미한 전체 경로선
+  arcGroup.add(new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({color: ARC_COL_DIM, transparent: true, opacity: .12})
+  ));
+  // 움직이는 헤드
+  const hl = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({color: ARC_COL, transparent: true, opacity: .9}));
+  arcGroup.add(hl);
+  arcs.push({pts, speed: .0025 + (i % 4) * .0008, prog: i / targetList.length, headLen: .20, line: hl, mat: hl.material});
+});
+
+// 수출국 간 일부 연결 아크 (인접/파트너 국가)
+const crossPairs = [[0,3],[4,5],[8,11],[12,13]]; // 절반으로 줄임
+crossPairs.forEach(([a, b], i) => {
+  if(!targetList[a] || !targetList[b]) return;
+  const va = ll2v(targetList[a].lon, targetList[a].lat, R);
+  const vb = ll2v(targetList[b].lon, targetList[b].lat, R);
+  const lift = 0.16 + (i % 3) * 0.04;
+  const pts = [];
+  for(let t = 0; t <= 100; t++){
+    const tt = t / 100;
+    const v = new THREE.Vector3().lerpVectors(va, vb, tt);
+    v.normalize().multiplyScalar(R + Math.sin(Math.PI * tt) * lift);
+    pts.push(v.clone());
+  }
+  arcGroup.add(new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({color: 0xffffff, transparent: true, opacity: .08})
+  ));
+  const hl = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({color: 0x88ddff, transparent: true, opacity: .75}));
+  arcGroup.add(hl);
+  arcs.push({pts, speed: .002 + (i % 3) * .001, prog: (i + 0.5) / crossPairs.length, headLen: .18, line: hl, mat: hl.material});
+});
+
+// Scatter dots removed:
+// keep visible points only on designated target countries.
+
+// ══════════════════════════════════════════════
+//  RAYCASTING — hover country detection
+// ══════════════════════════════════════════════
+const raycaster=new THREE.Raycaster();
+const mouse=new THREE.Vector2();
+const clickMouse=new THREE.Vector2();
+let hoverCountryId=null;
+
+// invisible sphere for raycasting against globe surface
+const hitSphere=new THREE.Mesh(
+  new THREE.SphereGeometry(R,64,64),
+  new THREE.MeshBasicMaterial({visible:false,side:THREE.FrontSide})
+);
+earthGroup.add(hitSphere);
+
+const ctip=document.getElementById('ctip');
+const ctipKo=document.getElementById('ctip-ko');
+const ctipEn=document.getElementById('ctip-en');
+
+function onMouseMove(e){
+  // Don't raycast when over UI
+  if(e.target.closest && e.target.closest('.ui')) {
+    hideTip(); return;
+  }
+
+  const rect=renderer.domElement.getBoundingClientRect();
+  mouse.x=((e.clientX-rect.left)/rect.width)*2-1;
+  mouse.y=-((e.clientY-rect.top)/rect.height)*2+1;
+
+  raycaster.setFromCamera(mouse,camera);
+  const hits=raycaster.intersectObject(hitSphere);
+
+  if(hits.length>0){
+    // Transform hit point into earthGroup local space (accounts for rotation)
+    const localPt=earthGroup.worldToLocal(hits[0].point.clone());
+    const {lon,lat}=v2ll(localPt);
+
+    const id=resolveTargetIdAtLL(lon,lat);
+
+    if(id && TARGET_COUNTRIES[id]){
+      if(hoverCountryId!==id){
+        hoverCountryId=id;
+        const info=TARGET_COUNTRIES[id];
+        ctipKo.textContent=info.ko;
+        ctipEn.textContent=info.en;
+        // Show click hint in tooltip
+        ctip.classList.add('on');
+      }
+      // Pointer cursor when hovering target country
+      renderer.domElement.style.cursor='pointer';
+      // Follow cursor
+      let tx=e.clientX+18, ty=e.clientY-12;
+      if(tx+160>window.innerWidth) tx=e.clientX-170;
+      if(ty+60>window.innerHeight) ty=e.clientY-65;
+      ctip.style.left=tx+'px';
+      ctip.style.top=ty+'px';
+    } else {
+      hideTip();
+    }
+  } else {
+    hideTip();
+  }
+}
+
+function hideTip(){
+  hoverCountryId=null;
+  ctip.classList.remove('on');
+  renderer.domElement.style.cursor='grab';
+}
+document.addEventListener('mousemove',onMouseMove);
+
+// ── Controls + Click navigation (통합) ──
+let drag=false,prev={x:0,y:0},vel={x:0,y:0},autoRot=true,globePaused=false;
+let mouseDownTime=0, mouseDownX=0, mouseDownY=0, clickTargetId=null;
+
+document.addEventListener('mousedown', e=>{
+  if(e.target.closest('.ui')) return;
+  mouseDownTime=Date.now(); mouseDownX=e.clientX; mouseDownY=e.clientY;
+  clickTargetId = hoverCountryId; // hover 국가를 mousedown 시점에 저장
+  drag=true;
+  if(!globePaused) autoRot=false;
+  hideTip();
+  prev={x:e.clientX,y:e.clientY};
+});
+document.addEventListener('mouseup', e=>{
+  if(e.target.closest('.ui')) return;
+  drag=false;
+  const dt=Date.now()-mouseDownTime;
+  const dx=Math.abs(e.clientX-mouseDownX), dy=Math.abs(e.clientY-mouseDownY);
+  if(dt<250 && dx<6 && dy<6){
+    if(clickTargetId && TARGET_COUNTRIES[clickTargetId]){
+      const info=TARGET_COUNTRIES[clickTargetId];
+      showRipple(e.clientX, e.clientY, info.css);
+      setTimeout(()=>{ window.location.href=countryAnalysisDashboardUrl(info.iso2); }, 400);
+    } else {
+      // Pause/resume only when the globe itself is clicked
+      const rect=renderer.domElement.getBoundingClientRect();
+      clickMouse.x=((e.clientX-rect.left)/rect.width)*2-1;
+      clickMouse.y=-((e.clientY-rect.top)/rect.height)*2+1;
+      raycaster.setFromCamera(clickMouse,camera);
+      const hits=raycaster.intersectObject(hitSphere);
+      if(hits.length>0){
+        globePaused = !globePaused;
+        if(globePaused){ vel.x=0; vel.y=0; autoRot=false; }
+        else { autoRot=true; }
+      }
+    }
+  }
+  clickTargetId=null;
+});
+document.addEventListener('mousemove',e=>{
+  if(!drag) return;
+  const dx = e.clientX - prev.x;
+  const dy = e.clientY - prev.y;
+  if(globePaused){
+    // 일시정지 중에는 관성 없이 드래그한 만큼 즉시 회전
+    earthGroup.rotation.y += dx * .005;
+    earthGroup.rotation.x = Math.max(-.6, Math.min(.6, earthGroup.rotation.x + dy * .005));
+  } else {
+    vel.y += dx * .005;
+    vel.x += dy * .005;
+  }
+  prev={x:e.clientX,y:e.clientY};
+},{passive:true});
+document.addEventListener('wheel',e=>{camera.position.z=Math.max(2.4,Math.min(6.5,camera.position.z+e.deltaY*.003));},{passive:true});
+document.addEventListener('touchstart',e=>{if(e.target.closest('.ui'))return;drag=true;autoRot=false;prev={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
+document.addEventListener('touchend',()=>{drag=false;});
+document.addEventListener('touchmove',e=>{if(!drag)return;vel.y+=(e.touches[0].clientX-prev.x)*.005;vel.x+=(e.touches[0].clientY-prev.y)*.005;prev={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
+
+// ── Animate ──
+let t=0;
+function animate(){
+  requestAnimationFrame(animate);t+=.016;
+  if(!globePaused){
+    if(autoRot){earthGroup.rotation.y+=.006;}
+    else{
+      earthGroup.rotation.y+=vel.y;
+      earthGroup.rotation.x=Math.max(-.6,Math.min(.6,earthGroup.rotation.x+vel.x));
+      vel.x*=.88;vel.y*=.88;
+      if(Math.abs(vel.x)<8e-5&&Math.abs(vel.y)<8e-5)autoRot=true;
+    }
+  }
+  globeMesh.children.forEach(ch=>{
+    if(ch.userData.pulse){
+      const s=1+.7*Math.abs(Math.sin(t*1.2+ch.userData.phase));
+      ch.scale.setScalar(s);ch.material.opacity=.55*Math.max(0,1-(s-1)/.7);
+    }
+  });
+  earthGroup.children.forEach(ch=>{
+    if(ch.userData.pulse){
+      const s=1+.6*Math.abs(Math.sin(t*1.8+ch.userData.phase));
+      ch.scale.setScalar(s);ch.material.opacity=.7*Math.max(0,1-(s-1)/.6);
+    }
+    if(ch.userData.isCloud){
+      ch.rotation.y += ch.userData.cloudSpeed || 0.0008;
+    }
+  });
+  gpsMarkerGroup.children.forEach(ch=>{
+    if(ch.userData.pulse){
+      const s=1+.45*Math.abs(Math.sin(t*1.9+ch.userData.phase));
+      ch.scale.setScalar(s);
+    }
+  });
+  arcs.forEach(arc=>{
+    arc.prog=(arc.prog+arc.speed)%1;
+    const len=arc.pts.length;
+    const si=Math.floor(Math.max(0,arc.prog-arc.headLen)*(len-1));
+    const ei=Math.floor(arc.prog*(len-1));
+    if(ei>si){
+      arc.line.geometry.setFromPoints(arc.pts.slice(si,ei+1));
+      arc.line.geometry.attributes.position.needsUpdate=true;
+      arc.mat.opacity=.5+.45*Math.sin(arc.prog*Math.PI);
+    }
+  });
+  renderer.render(scene,camera);
+}
+
+window.addEventListener('resize',()=>{
+  const W=window.innerWidth,H=window.innerHeight;
+  renderer.setSize(W,H);camera.aspect=W/H;camera.updateProjectionMatrix();
+});
+
+// ── Ripple click effect ──
+function showRipple(x,y,color){
+  const el=document.createElement('div');
+  el.style.cssText=`position:fixed;left:${x}px;top:${y}px;width:0;height:0;border-radius:50%;background:${color};opacity:0.55;transform:translate(-50%,-50%);pointer-events:none;z-index:999;transition:width .4s ease-out,height .4s ease-out,opacity .4s ease-out;`;
+  document.body.appendChild(el);
+  requestAnimationFrame(()=>{
+    el.style.width='120px'; el.style.height='120px'; el.style.opacity='0';
+  });
+  setTimeout(()=>el.remove(), 450);
+}
+
+
+// Initial cursor style
+renderer.domElement.style.cursor='grab';
+document.addEventListener('mousedown', ()=>{ if(!hoverCountryId) renderer.domElement.style.cursor='grabbing'; });
+document.addEventListener('mouseup',   ()=>{ if(!hoverCountryId) renderer.domElement.style.cursor='grab'; });
+
+initGeo();
+animate();
+
+// ── Search autocomplete data ──
+// Build searchable list from TARGET_COUNTRIES
+const SEARCH_LIST = Object.entries(TARGET_COUNTRIES).map(([id,info])=>({
+  id: parseInt(id),
+  ko: info.ko,
+  en: info.en,
+  url: countryAnalysisDashboardUrl(info.iso2),
+  css: info.css,
+  // all searchable aliases
+  aliases: [
+    info.ko.toLowerCase(),
+    info.en.toLowerCase(),
+    // extra aliases for common alternate spellings
+    ...(info.en==='Saudi Arabia'?['사우디','saudi']:
+        info.en==='South Africa'?['남아공','남아프리카공화국']:
+        info.en==='New Zealand'?['뉴질']:
+        info.en==='Indonesia'?['인니']:
+        info.en==='Hungary'?['헝']:
+        info.en==='Mongolia'?['몽골','mongol']:
+        info.en==='Singapore'?['싱']:
+        info.en==='Hong Kong'?['홍']:
+        info.en==='Australia'?['호주','aussie']:
+        info.en==='UAE'?['아랍','에미리트','emirates']:
+        info.en==='Poland'?['폴']:
+        info.en==='Panama'?['파나']:
+        info.en==='Uruguay'?['우루']:
+        info.en==='Chile'?['칠']:
+        info.en==='Mexico'?['멕']:
+        [])
+  ]
+}));
+
+const siEl = document.getElementById('si');
+const acEl = document.getElementById('autocomplete');
+let acActive = -1; // keyboard nav index
+let acResults = [];
+
+function matchSearch(query) {
+  const q = query.toLowerCase().trim();
+  if (!q) return [];
+  return SEARCH_LIST.filter(item =>
+    item.aliases.some(alias => alias.includes(q))
+  );
+}
+
+function renderAC(results) {
+  acResults = results;
+  acActive = -1;
+  if (results.length === 0) { acEl.classList.remove('open'); acEl.innerHTML=''; return; }
+  acEl.innerHTML = results.map((item, i) => `
+    <div class="ac-item" data-idx="${i}" onmousedown="acSelect(${i})">
+      <div class="ac-dot" style="background:${item.css}"></div>
+      <div class="ac-names">
+        <span class="ac-ko">${item.ko}</span>
+        <span class="ac-en">${item.en}</span>
+      </div>
+      <span class="ac-arrow">→</span>
+    </div>
+  `).join('');
+  acEl.classList.add('open');
+}
+
+function acSelect(idx) {
+  const item = acResults[idx];
+  if (!item) return;
+  siEl.value = item.ko;
+  acEl.classList.remove('open');
+  acEl.innerHTML = '';
+  navigateTo(item.url, item.ko);
+}
+
+function navigateTo(url, name) {
+  const tip = document.getElementById('stip');
+  tip.textContent = `"${name}" 페이지로 이동 중...`;
+  tip.classList.add('on');
+  setTimeout(() => { window.location.href = url; }, 500);
+}
+
+function closeAC() { acEl.classList.remove('open'); acEl.innerHTML=''; acActive=-1; }
+
+siEl.addEventListener('input', () => {
+  const q = siEl.value;
+  renderAC(matchSearch(q));
+});
+
+siEl.addEventListener('keydown', e => {
+  if (acEl.classList.contains('open') && acResults.length > 0) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      acActive = Math.min(acActive+1, acResults.length-1);
+      document.querySelectorAll('.ac-item').forEach((el,i)=>el.classList.toggle('active',i===acActive));
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      acActive = Math.max(acActive-1, 0);
+      document.querySelectorAll('.ac-item').forEach((el,i)=>el.classList.toggle('active',i===acActive));
+      return;
+    }
+    if (e.key === 'Enter') {
+      if (acActive >= 0) { acSelect(acActive); return; }
+      // If only one result, go there
+      if (acResults.length === 1) { acSelect(0); return; }
+    }
+    if (e.key === 'Escape') { closeAC(); return; }
+  }
+  if (e.key === 'Enter') doSearch();
+});
+
+// Close AC when clicking outside
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('.sw')) closeAC();
+});
+
+function setQ(el) {
+  siEl.value = el.textContent;
+  closeAC();
+}
+
+function doSearch() {
+  const v = siEl.value.trim();
+  if (!v) return;
+  // Check if it matches a country
+  const results = matchSearch(v);
+  if (results.length > 0) {
+    navigateTo(results[0].url, results[0].ko);
+    return;
+  }
+  const tip = document.getElementById('stip');
+  tip.textContent = `"${v}" 검색 중...`;
+  tip.classList.add('on');
+  setTimeout(() => tip.classList.remove('on'), 2500);
+}
+</script>
+</body>
+</html>
