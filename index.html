@@ -523,11 +523,15 @@ function v2ll(v){
 // ══════════════════════════════════════════════
 //  TARGET COUNTRIES — ISO numeric codes + ISO2 (Render 대시보드 서브도메인)
 //  예: sg → https://sg-analysis-dashboard.onrender.com/
+//  배포별 URL은 ISO2로 매핑 (나머지는 ${code}-analysis-dashboard.onrender.com 패턴)
 // ══════════════════════════════════════════════
 function countryAnalysisDashboardUrl(iso2) {
   const code = String(iso2 || '').trim().toLowerCase();
   const countryUrlMap = {
     sg: 'https://sg-analysis-dashboard.onrender.com/',
+    pa: 'https://united-panama.vercel.app/',
+    au: 'https://australia-1st-logic.onrender.com/',
+    sa: 'https://saudi-pharma-crawler.onrender.com/',
     // 현재 프로젝트의 헝가리 대시보드(Next.js 메인)로 연결
     hu: '/',
   };
